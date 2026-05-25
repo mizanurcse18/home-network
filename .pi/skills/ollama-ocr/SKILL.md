@@ -17,16 +17,51 @@ This skill helps you:
 5. Run OCR as a separate service or alongside existing APIs
 6. **Track all actions with date/time stamps**
 
+## Hardware Reference (Your Laptops)
+
+### Laptop A (This one — Best for Ollama / GPU)
+
+| Component | Spec |
+|-----------|------|
+| **Model** | ASUS (unknown model) |
+| **CPU** | AMD Ryzen 7 4800H (8 cores, 16 threads) |
+| **RAM** | 23.4 GB |
+| **GPU** | NVIDIA GeForce RTX 3050 Ti Laptop GPU (4GB VRAM) + AMD Radeon Graphics (512MB) |
+| **C: Drive** | 21.5 GB free / 322 GB total ⚠️ Low space |
+| **D: Drive** | 38.2 GB free / 164.7 GB total ✅ Install models here |
+| **IP** | `192.168.68.113` |
+| **Ollama** | ❌ Not yet installed |
+
+### Laptop B
+
+| Component | Spec |
+|-----------|------|
+| **GPU** | Intel UHD Graphics 620 (Shared, no dedicated VRAM) |
+| **RAM** | 15.9 GB |
+| **IP** | `192.168.68.107` |
+| **Ollama** | Not yet installed |
+
+### Where to Run Ollama
+
+| Laptop | GPU Acceleration | Max Model | Verdict |
+|--------|-----------------|-----------|---------|
+| **Laptop A** ⭐ | ✅ RTX 3050 Ti (CUDA) | Up to 7B models (Qwen2.5-VL, LLaVA) | **Best choice** |
+| **Laptop B** | ❌ Intel UHD (no CUDA) | CPU-only, slower | Use as client only |
+
+> **Recommendation:** Install Ollama on **Laptop A** (GPU accelerated). Laptop B and any Docker services connect to it via LAN at `http://192.168.68.113:11434`.
+
+---
+
 ## Which Model to Use
 
-| Model | Size | VRAM | RAM | OCR Quality | Speed |
-|-------|------|------|-----|-------------|-------|
-| **Qwen2.5-VL 7B** ⭐ | 4.7GB | 4GB+ | 8GB+ | ⭐⭐⭐⭐⭐ Best | ⚡ Fast |
-| **LLaVA 7B** | 4.5GB | 4GB+ | 8GB+ | ⭐⭐⭐ Good | ⚡ Fast |
-| **Florence-2** | 1.2GB | 2GB+ | 4GB+ | ⭐⭐⭐ Good | ⚡⚡ Very Fast |
-| **Llama 3.2 Vision 11B** | 7.9GB | 8GB+ | 12GB+ | ⭐⭐⭐⭐ Great | 🐌 Slower |
+| Model | Size | VRAM | RAM | OCR Quality | Speed | Fits Laptop A? |
+|-------|------|------|-----|-------------|-------|----------------|
+| **Qwen2.5-VL 7B** ⭐ | 4.7GB | 4GB+ | 8GB+ | ⭐⭐⭐⭐⭐ Best | ⚡ Fast | ✅ Yes (4GB VRAM) |
+| **LLaVA 7B** | 4.5GB | 4GB+ | 8GB+ | ⭐⭐⭐ Good | ⚡ Fast | ✅ Yes (4GB VRAM) |
+| **Florence-2** | 1.2GB | 2GB+ | 4GB+ | ⭐⭐⭐ Good | ⚡⚡ Very Fast | ✅ Yes (lightweight) |
+| **Llama 3.2 Vision 11B** | 7.9GB | 8GB+ | 12GB+ | ⭐⭐⭐⭐ Great | 🐌 Slower | ❌ Needs 8GB VRAM |
 
-**Recommendation:** `qwen2.5-vl:7b` — best balance of accuracy, size, and speed.
+**Recommendation:** `qwen2.5-vl:7b` — best balance of accuracy, size, and speed for your RTX 3050 Ti.
 
 ---
 

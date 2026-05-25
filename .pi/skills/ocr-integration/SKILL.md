@@ -30,10 +30,35 @@ Integrate OCR (Optical Character Recognition) into existing PayStation services 
 └───────────────┘          └──────────────────┘          └──────────────────┘
 ```
 
+## Hardware Reference (Your Laptops)
+
+### Laptop A (Ollama / GPU Host)
+
+| Component | Spec |
+|-----------|------|
+| **CPU** | AMD Ryzen 7 4800H (8 cores, 16 threads) |
+| **RAM** | 23.4 GB |
+| **GPU** | NVIDIA GeForce RTX 3050 Ti (4GB VRAM) — CUDA enabled |
+| **Free Space** | D: 38 GB free (install models here) |
+| **IP** | `192.168.68.113` |
+
+### Laptop B (Client / Services)
+
+| Component | Spec |
+|-----------|------|
+| **GPU** | Intel UHD Graphics 620 (shared, no dedicated VRAM) |
+| **RAM** | 15.9 GB |
+| **IP** | `192.168.68.107` |
+
+> **Run Ollama on Laptop A** (GPU). Laptop B and Docker services connect via `http://192.168.68.113:11434`.
+
+---
+
 ## Prerequisites
 
-- Ollama OCR API running (see `ollama-ocr` skill)
-- Access to OCR API endpoint (default: `http://192.168.68.113:5004`)
+- Ollama OCR API running on Laptop A (see `ollama-ocr` skill)
+- OCR API endpoint: `http://192.168.68.113:5004`
+- Ollama endpoint: `http://192.168.68.113:11434`
 - .NET 8 services with HTTP client configured
 
 ---
