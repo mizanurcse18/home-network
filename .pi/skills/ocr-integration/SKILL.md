@@ -63,6 +63,50 @@ Integrate OCR (Optical Character Recognition) into existing PayStation services 
 
 ---
 
+## Development Workflow (Step-by-Step)
+
+Here's the exact order to integrate OCR into your PayStation services:
+
+```mermaid
+flowchart LR
+    A[1. Verify OCR API<br>is running] --> B[2. Add OcrClient<br>to Core library]
+    B --> C[3. Add HttpClient<br>to each Program.cs]
+    C --> D[4. Add config to<br>appsettings.json]
+    D --> E[5. Add DB migration<br>for OCR fields]
+    E --> F[6. Implement OCR<br>in service layer]
+    F --> G[7. Add controller<br>endpoints]
+    G --> H[8. Test end-to-end<br>with real images]
+```
+
+### Quick Start (TL;DR)
+
+```csharp
+// 1. Add to each service's Program.cs
+builder.Services.AddHttpClient("OcrApi", client =>
+{
+    client.BaseAddress = new Uri("http://192.168.68.113:5004");
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
+
+// 2. Add to appsettings.json
+{"OcrApi": {"BaseUrl": "http://192.168.68.113:5004"}}
+
+// 3. Inject and use in any Manager
+public class KycService
+{
+    private readonly OcrClient _ocrClient;
+    
+    public async Task ProcessKycAsync(IFormFile file)
+    {
+        var base64 = Convert.ToBase64String(await FileToBytes(file));
+        var data = await _ocrClient.ExtractDocumentAsync<KycData>(base64);
+        // Auto-fill KYC fields from OCR
+    }
+}
+```
+
+---
+
 ## 1. Integration Setup
 
 ### 1.1 Add HttpClient in each service's Program.cs

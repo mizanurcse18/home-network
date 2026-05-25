@@ -65,7 +65,51 @@ This skill helps you:
 
 ---
 
-## Step 1: Install Ollama
+## Development Workflow (Step-by-Step)
+
+Here's the exact order of steps to go from nothing → working OCR on your laptops:
+
+```mermaid
+flowchart LR
+    A[1. Install Ollama<br>on Laptop A] --> B[2. Pull model<br>qwen2.5-vl:7b]
+    B --> C[3. Test Ollama<br>with an image]
+    C --> D[4. Create .NET 8<br>OCR API project]
+    D --> E[5. Add firewall rule<br>port 5004]
+    E --> F[6. Run OCR API<br>& test from Swagger]
+    F --> G[7. Test from<br>Laptop B]
+    G --> H[8. Integrate with<br>Security/SCM/File]
+```
+
+### Quick Start (TL;DR)
+
+```cmd
+:: ===== On Laptop A =====
+
+:: 1. Install Ollama
+winget install Ollama.Ollama
+
+:: 2. Set models to D: drive (save C: space)
+mkdir D:\ollama_models
+setx OLLAMA_MODELS D:\ollama_models /M
+net stop ollama && net start ollama
+
+:: 3. Pull model
+ollama pull qwen2.5-vl:7b
+
+:: 4. Test locally
+ollama run qwen2.5-vl:7b "Extract text" --image test.jpg
+
+:: 5. Start Ollama as API server
+ollama serve
+:: (Runs on http://192.168.68.113:11434)
+
+:: 6. Create .NET OCR service, then run:
+dotnet run --project Ocr.API --urls http://0.0.0.0:5004
+```
+
+---
+
+## Step 1: Install Ollama on Laptop A
 
 ### On Windows (Standalone)
 
