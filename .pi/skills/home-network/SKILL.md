@@ -1,30 +1,32 @@
 ---
 name: home-network
-description: Manages a private LAN between two Windows laptops for hosting and accessing applications. Covers router/direct connection, IP config, firewall rules, WSL, and keeps a dated session history of all changes.
+description: Manages a private LAN between two Windows laptops for hosting apps, Remote Desktop, file sharing, and network troubleshooting. Covers router/direct connection, IP config (static/DHCP reservation), firewall rules, RDP setup, password recovery, WSL, and keeps a dated session history of all changes.
 ---
 
 # Home Network Setup
 
-Manages a private LAN between two Windows laptops for application hosting and file sharing.
+Manages a private LAN between two Windows laptops for application hosting, Remote Desktop access, file sharing, and more.
 
 > ⏱ **Session history is tracked below.** Always read the [Session History](#-session-history) section first to understand what has already been configured before making changes.
 
 ## Overview
 
 This skill helps you:
-1. Connect two Windows laptops on the same private network
-2. Configure static or DHCP-assigned IP addresses
+1. Connect two Windows laptops on the same private network (router or direct cable)
+2. Configure static or DHCP-assigned IP addresses (DHCP reservation or manual)
 3. Open Windows Firewall ports for hosted applications
-4. Test connectivity between laptops
-5. Optionally set up WSL with port forwarding
-6. **Track all actions with date/time stamps** for future reference
+4. **Enable and access Remote Desktop (RDP)** between laptops
+5. **Reset or change Windows passwords** via command line
+6. Set up WSL with port forwarding
+7. Share files via SMB
+8. **Track all actions with date/time stamps** for future reference
 
 ## Prerequisites
 
 - Two Windows laptops (10 or 11)
 - For Option 1: A Wi-Fi router with available ports/SSID
 - For Option 2: An Ethernet cable
-- Administrator access on both laptops (for firewall changes)
+- Administrator access on both laptops (for firewall and system changes)
 
 ## Usage
 
@@ -89,15 +91,83 @@ netsh advfirewall firewall add rule name="Home Network App" dir=in action=allow 
 
 > **Important:** For any application, bind to `0.0.0.0` (all interfaces), not `127.0.0.1` (localhost only).
 
-### 5. Static IP (Optional — for permanent setup)
+### 5. Fix Dynamic IP (Make IP Static)
 
-#### Router-side (Recommended):
-Log into the router admin panel (`http://<GATEWAY_IP>`) → **DHCP Reservation** → Map each laptop's MAC address to a fixed IP.
+If a laptop's IP changes after reboot, pick one method:
 
-#### Windows-side:
+#### Option A: DHCP Reservation on Router (✅ Recommended)
+1. Open browser → `http://<GATEWAY_IP>` (e.g. `192.168.68.1`)
+2. Log into router admin
+3. Find **DHCP Reservation** or **Address Reservation**
+4. Look up the laptop's MAC address (`ipconfig /all` → Physical Address)
+5. Assign a fixed IP and save
+
+#### Option B: Static IP on Windows (Command Line)
+Run as Administrator on the target laptop:
+
+```cmd
+:: Set static IP (replace Wi-Fi with your adapter name if needed)
+netsh interface ip set address name="Wi-Fi" static 192.168.68.107 255.255.255.0 192.168.68.1
+
+:: Set DNS
+netsh interface ip set dns name="Wi-Fi" static 8.8.8.8
+```
+
+#### Option C: Static IP via GUI
 **Control Panel** → **Network and Sharing Center** → **Change adapter settings** → Right-click adapter → Properties → IPv4 → Properties → "Use the following IP address"
 
-### 6. WSL Integration (Optional)
+### 6. Enable Remote Desktop (RDP)
+
+#### Step 1: Enable RDP on the target laptop
+Run as Administrator:
+
+```cmd
+reg add "HKLM\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+```
+
+#### Step 2: Allow RDP through firewall
+```cmd
+netsh advfirewall firewall add rule name="Remote Desktop" dir=in action=allow protocol=TCP localport=3389
+```
+
+#### Step 3: (Optional) Allow user via GUI
+1. **Win + R** → `sysdm.cpl` → Enter
+2. **Remote** tab → Check **"Allow remote connections to this computer"**
+3. Uncheck "Allow connections only from computers with Remote Desktop..." (for same-network access)
+
+#### Step 4: Connect from the other laptop
+1. Press **Win + R** → `mstsc` → Enter
+2. Computer: `<TARGET_IP>` (e.g. `192.168.68.107`)
+3. Username: `<LAPTOP_NAME>\<USERNAME>` (e.g. `200413-mizanur\mizanur.rahman`)
+4. Enter the target laptop's login password
+
+#### Step 5: Verify RDP port is open
+From the client laptop:
+
+```cmd
+Test-NetConnection <TARGET_IP> -Port 3389
+```
+
+### 7. Reset / Change Windows Password via Command Line
+
+If you're logged in (via PIN or fingerprint) but forgot the password:
+
+#### Method A: Command Prompt (Admin)
+```cmd
+net user <USERNAME> *
+```
+Type the new password twice (characters won't show). Ensure it meets complexity:
+- At least 8 characters
+- Upper + lower case letters
+- At least 1 number
+- At least 1 special character (e.g. `!@#$`)
+
+#### Method B: Windows Settings
+**Settings** → **Accounts** → **Sign-in options** → **Password** → **Change** (verify with PIN/fingerprint)
+
+> **Note:** If using a Microsoft account, the password policy is enforced by Microsoft's servers, not the local machine.
+
+### 8. WSL Integration (Optional)
 
 If using WSL for application hosting:
 
@@ -119,11 +189,11 @@ networkingMode=mirrored
 dhcp=true
 ```
 
-### 7. File Sharing via SMB
+### 9. File Sharing via SMB
 
 1. Right-click a folder → **Properties** → **Sharing** → **Share**
-2. Add "Everyone" with Read/Write permissions
-3. On the other laptop, open File Explorer and type:
+2. Add **Everyone** with Read/Write permissions
+3. On the other laptop, open **File Explorer** and type:
    ```
    \\<HOST_IP>\SharedFolder
    ```
@@ -134,6 +204,10 @@ dhcp=true
 |---------|-----|
 | Ping fails | Check firewalls on both laptops, verify same subnet |
 | App not accessible | Bind to `0.0.0.0`, not `127.0.0.1`; add firewall rule |
+| RDP won't connect | Check RDP is enabled (`fDenyTSConnections = 0`), port 3389 open in firewall, user added to "Remote Desktop Users" group |
+| RDP "credentials did not work" | Verify username format: `LAPTOP_NAME\USERNAME` or just `USERNAME`. Check password with `net user` command |
+| RDP "user not allowed" | Run on target: `net localgroup "Remote Desktop Users" /add <USERNAME>` |
+| Password rejected by policy | Use 8+ chars with upper, lower, number, and special character |
 | WSL app not reachable | Use `netsh interface portproxy` to forward the port |
 | IP changed after reboot | Set up DHCP reservation on router or static IP on Windows |
 
@@ -143,6 +217,7 @@ Quick diagnostics:
 ipconfig                         # Your own IP
 ping <OTHER_IP>                  # Test connectivity
 Test-NetConnection <IP> -Port 8000   # Test port reachability
+Test-NetConnection <IP> -Port 3389   # Test RDP port
 netsh advfirewall firewall show rule name=all   # List firewall rules
 ```
 
@@ -181,6 +256,22 @@ Each session entry follows this format:
 - Firewall rule added: `Home Network Test 8000` (TCP 8000, inbound)
 **Result:** ✅ Success — Laptop B reached `http://192.168.68.113:8000`
 **Notes:** Both laptops on Wi-Fi, no static IPs set yet. If IPs change after reboot, set up DHCP reservation on the router.
+
+---
+
+### 2026-05-25 ~15:00 — Enabled Remote Desktop on Laptop B + fixed dynamic IP concern
+
+**Action:** Enabled RDP on Laptop B, opened port 3389 in firewall, verified connectivity from Laptop A. User reset password via `net user` command after forgetting it. Documented methods to fix dynamic IP (DHCP reservation / static IP).
+**Laptop(s):** Both
+**Configuration:**
+- Laptop B RDP: Enabled (`fDenyTSConnections = 0`)
+- Firewall rule added: `Remote Desktop` (TCP 3389, inbound)
+- RDP port verified: `TcpTestSucceeded : True` from Laptop A
+- Laptop B username: `200413-mizanur\mizanur.rahman`
+- Password reset via: `net user mizanur.rahman *`
+- Laptop A already has RDP enabled for outside/internet access (pre-existing)
+**Result:** ✅ Success — RDP connection from Laptop A to Laptop B works with correct credentials
+**Notes:** Laptop B still has dynamic IP. Recommend setting up DHCP reservation on router at `192.168.68.1` for permanent fix. Write down the new password!
 
 ---
 
