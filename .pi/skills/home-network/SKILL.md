@@ -1,6 +1,6 @@
 ---
 name: home-network
-description: Manages a private LAN between two Windows laptops for hosting apps, Remote Desktop, file sharing, and network troubleshooting. Covers router/direct connection, IP config (static/DHCP reservation), firewall rules, RDP setup, password recovery, WSL, and keeps a dated session history of all changes.
+description: Manages a private LAN between two Windows laptops for hosting apps, Remote Desktop, file sharing, internet-accessible websites, and network troubleshooting. Covers router/direct connection, IP config (static/DHCP reservation), firewall rules, RDP setup, password recovery, port forwarding, reverse proxy, Cloudflare Tunnel, ngrok, WSL, and keeps a dated session history of all changes.
 ---
 
 # Home Network Setup
@@ -17,9 +17,10 @@ This skill helps you:
 3. Open Windows Firewall ports for hosted applications
 4. **Enable and access Remote Desktop (RDP)** between laptops
 5. **Reset or change Windows passwords** via command line
-6. Set up WSL with port forwarding
-7. Share files via SMB
-8. **Track all actions with date/time stamps** for future reference
+6. **Host a website accessible from the internet** (port forwarding, reverse proxy, Cloudflare Tunnel, ngrok)
+7. Set up WSL with port forwarding
+8. Share files via SMB
+9. **Track all actions with date/time stamps** for future reference
 
 ## Prerequisites
 
@@ -189,7 +190,121 @@ networkingMode=mirrored
 dhcp=true
 ```
 
-### 9. File Sharing via SMB
+### 10. Host a Website Accessible from the Internet
+
+You have several options to make a site hosted on a laptop accessible from outside your home network.
+
+---
+
+#### Option A: Port Forwarding on Router (Most Common)
+
+Forward a public port from your router directly to the target laptop.
+
+```
+Internet ──► Router ──► Laptop (192.168.68.x:PORT)
+```
+
+**Steps:**
+1. Log into your router at `http://<GATEWAY_IP>` (e.g. `192.168.68.1`)
+2. Find **Port Forwarding** or **Virtual Server**
+3. Add a rule:
+
+   | Setting | Value |
+   |---------|-------|
+   | External Port | e.g. `8080` |
+   | Internal IP | Target laptop's IP |
+   | Internal Port | Your app's port |
+   | Protocol | TCP |
+
+4. On the target laptop, bind app to `0.0.0.0:<PORT>` and add firewall rule:
+   ```cmd
+   netsh advfirewall firewall add rule name="Web App <PORT>" dir=in action=allow protocol=TCP localport=<PORT>
+   ```
+
+5. Find your public IP:
+   ```cmd
+   curl ifconfig.me
+   ```
+   Access: `http://<PUBLIC_IP>:<PORT>`
+
+> ⚠️ Most home ISPs change your public IP. Use **Dynamic DNS** (DDNS) like `noip.com` for a fixed hostname.
+
+---
+
+#### Option B: Reverse Proxy via Another Laptop
+
+If one laptop already has internet access, use it as a reverse proxy.
+
+```
+Internet ──► Laptop A (port 8080) ──► Laptop B (192.168.68.107:8080)
+```
+
+**Using Node.js on the proxy laptop:**
+
+Create `proxy.js`:
+```javascript
+const http = require('http');
+const httpProxy = require('http-proxy');
+const proxy = httpProxy.createProxyServer({});
+const TARGET = 'http://192.168.68.107:8080';
+http.createServer((req, res) => {
+  proxy.web(req, res, { target: TARGET });
+}).listen(8080, '0.0.0.0', () => {
+  console.log('Proxy running on port 8080 -> Laptop B');
+});
+```
+
+```cmd
+npm install http-proxy
+node proxy.js
+```
+
+Add firewall rule on the proxy laptop:
+```cmd
+netsh advfirewall firewall add rule name="Web Proxy 8080" dir=in action=allow protocol=TCP localport=8080
+```
+
+---
+
+#### Option C: Cloudflare Tunnel (✅ Best — No public IP needed)
+
+Free, secure, no port forwarding. Works with CGNAT and dynamic IPs.
+
+**On the target laptop:**
+1. Download `cloudflared` from [Cloudflare Tunnel docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+2. Authenticate and create a tunnel:
+   ```cmd
+   cloudflared tunnel login
+   cloudflared tunnel create my-site
+   cloudflared tunnel route dns my-site mysite.example.com
+   cloudflared tunnel run my-site
+   ```
+Your site is live at `https://mysite.example.com`.
+
+---
+
+#### Option D: ngrok (Easiest for Testing)
+
+Single command on the target laptop:
+```cmd
+ngrok http 8080
+```
+Returns a public URL like `https://abc123.ngrok.io`.
+
+---
+
+#### Quick Comparison
+
+| Option | Public IP Needed | Setup Time | Security | Best For |
+|--------|-----------------|------------|----------|---------|
+| Port Forwarding | Yes (or DDNS) | Medium | Moderate | Permanent sites |
+| Reverse Proxy | Depends on proxy host | Medium | Good | Leveraging existing setup |
+| Cloudflare Tunnel | No | Medium | Excellent | Production, custom domain |
+| ngrok | No | 1 min | Good | Quick testing |
+
+---
+
+### 11. File Sharing via SMB
 
 1. Right-click a folder → **Properties** → **Sharing** → **Share**
 2. Add **Everyone** with Read/Write permissions
@@ -272,6 +387,21 @@ Each session entry follows this format:
 - Laptop A already has RDP enabled for outside/internet access (pre-existing)
 **Result:** ✅ Success — RDP connection from Laptop A to Laptop B works with correct credentials
 **Notes:** Laptop B still has dynamic IP. Recommend setting up DHCP reservation on router at `192.168.68.1` for permanent fix. Write down the new password!
+
+---
+
+### 2026-05-25 ~16:00 — Documented options for hosting a site accessible from the internet
+
+**Action:** Added comprehensive documentation for making a website on Laptop B reachable from the internet. Covered port forwarding, reverse proxy via Laptop A, Cloudflare Tunnel, and ngrok.
+**Laptop(s):** Both
+**Configuration:**
+- All four methods documented with step-by-step instructions
+- Port forwarding: Router `192.168.68.1` → Laptop B `192.168.68.107`
+- Reverse proxy: Laptop A (`192.168.68.113`) acts as proxy to Laptop B
+- Cloudflare Tunnel: No public IP required
+- ngrok: Quick testing URL
+**Result:** ✅ Documentation added to both README.md and SKILL.md
+**Notes:** Laptop A already has internet-facing access which can be leveraged for reverse proxy. Cloudflare Tunnel is recommended for production use.
 
 ---
 

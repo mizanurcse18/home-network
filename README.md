@@ -372,6 +372,132 @@ Both laptops now communicate on the private `192.168.68.x` network. Applications
 
 ---
 
+---
+## Hosting a Website Accessible from the Internet
+
+Since both laptops are on your private network (`192.168.68.x`), you have several options to make a site hosted on **Laptop B** available from the outside world.
+
+---
+
+### Option 1: Port Forwarding on Router (Most Common)
+
+Forward a public port from your router directly to Laptop B.
+
+```
+Internet ──► Router (192.168.68.1) ──► Laptop B (192.168.68.107:8080)
+```
+
+**Steps:**
+
+1. Log into your router at `http://192.168.68.1`
+2. Find **Port Forwarding** or **Virtual Server**
+3. Add a rule:
+
+   | Setting | Value |
+   |---------|-------|
+   | External Port | `8080` (or any available port) |
+   | Internal IP | `192.168.68.107` |
+   | Internal Port | `8080` (your app's port) |
+   | Protocol | TCP |
+
+4. On **Laptop B**, bind your app to `0.0.0.0:8080` and allow the port through firewall:
+   ```cmd
+   netsh advfirewall firewall add rule name="Web App 8080" dir=in action=allow protocol=TCP localport=8080
+   ```
+
+5. Find your public IP:
+   ```cmd
+   curl ifconfig.me
+   ```
+   Then access: `http://<YOUR_PUBLIC_IP>:8080`
+
+> ⚠️ Most home ISPs change your public IP periodically. Use **Dynamic DNS** (DDNS) like `noip.com` or your router's built-in DDNS for a fixed hostname.
+
+---
+
+### Option 2: Reverse Proxy via Laptop A (Leverage existing setup)
+
+Since **Laptop A already has internet-facing access**, use it as a reverse proxy to forward traffic to Laptop B.
+
+```
+Internet ──► Laptop A (port 8080) ──► Laptop B (192.168.68.107:8080)
+```
+
+#### Using Node.js (install Node.js first)
+
+On **Laptop A**, create `proxy.js`:
+
+```javascript
+const http = require('http');
+const httpProxy = require('http-proxy');
+
+const proxy = httpProxy.createProxyServer({});
+const TARGET = 'http://192.168.68.107:8080';
+
+http.createServer((req, res) => {
+  proxy.web(req, res, { target: TARGET });
+}).listen(8080, '0.0.0.0', () => {
+  console.log('Proxy running on port 8080 -> Laptop B');
+});
+```
+
+Install & run:
+```cmd
+npm install http-proxy
+node proxy.js
+```
+
+Add firewall rule on Laptop A:
+```cmd
+netsh advfirewall firewall add rule name="Web Proxy 8080" dir=in action=allow protocol=TCP localport=8080
+```
+
+Now access from internet: `http://<LAPTOP_A_PUBLIC_IP>:8080`
+
+---
+
+### Option 3: Cloudflare Tunnel (✅ Best — No public IP needed)
+
+Free, secure, no port forwarding required. Works even with CGNAT or dynamic IPs.
+
+**Steps on Laptop B:**
+
+1. Download `cloudflared` from [Cloudflare Tunnel docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+2. Authenticate and create a tunnel:
+   ```cmd
+   cloudflared tunnel login
+   cloudflared tunnel create my-site
+   cloudflared tunnel route dns my-site mysite.example.com
+   cloudflared tunnel run my-site
+   ```
+
+Your site is live at `https://mysite.example.com` — no router config needed!
+
+---
+
+### Option 4: ngrok (Easiest for Testing)
+
+No setup, single command on **Laptop B**:
+
+```cmd
+ngrok http 8080
+```
+
+It returns a public URL like `https://abc123.ngrok.io` that tunnels to your local port.
+
+---
+
+### Quick Comparison
+
+| Option | Public IP Needed | Setup Time | Security | Best For |
+|--------|-----------------|------------|----------|---------|
+| Port Forwarding | Yes (or DDNS) | Medium | Moderate | Permanent sites |
+| Reverse Proxy (Laptop A) | Depends on Laptop A | Medium | Good | Leveraging existing setup |
+| Cloudflare Tunnel | No | Medium | Excellent | Production, custom domain |
+| ngrok | No | 1 min | Good | Quick testing |
+
+---
+
 ## Pi Skill
 
 A reusable pi skill with **date/time session tracking** is included in this project:
