@@ -535,6 +535,22 @@ The skill already records the initial 2026-05-25 session. Any future work will b
 
 ---
 
+## Docker .NET 8 Microservices Deployment
+
+A complete architecture guide for running .NET 8 microservices in Docker on **Laptop B** with PostgreSQL/MySQL database on **Laptop A** is available:
+
+📄 **[docker-deployment/ARCHITECTURE.md](docker-deployment/ARCHITECTURE.md)**
+
+**Covers:**
+- Docker Desktop setup on Windows (WSL 2 backend)
+- PostgreSQL / MySQL database setup with remote access
+- Dockerfiles for .NET 8 services
+- Docker Compose for security-api, scm-api, file-service
+- Firewall rules for all service ports
+- Migration guide to Linux production server
+
+---
+
 ## Next Steps / Customization
 
 - **Need a specific application hosted?** Let me know what you're running (web app, database, game server, etc.) and I'll add specific instructions.

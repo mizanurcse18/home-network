@@ -1,6 +1,6 @@
 ---
 name: home-network
-description: Manages a private LAN between two Windows laptops for hosting apps, Remote Desktop, file sharing, internet-accessible websites, and network troubleshooting. Covers router/direct connection, IP config (static/DHCP reservation), firewall rules, RDP setup, password recovery, port forwarding, reverse proxy, Cloudflare Tunnel, ngrok, WSL, and keeps a dated session history of all changes.
+description: Manages a private LAN between two Windows laptops for hosting apps, Remote Desktop, file sharing, internet-accessible websites, Docker .NET 8 microservices, and network troubleshooting. Covers router/direct connection, IP config (static/DHCP reservation), firewall rules, RDP setup, password recovery, port forwarding, reverse proxy, Cloudflare Tunnel, ngrok, Docker Compose with PostgreSQL/MySQL, WSL, and keeps a dated session history of all changes.
 ---
 
 # Home Network Setup
@@ -18,9 +18,11 @@ This skill helps you:
 4. **Enable and access Remote Desktop (RDP)** between laptops
 5. **Reset or change Windows passwords** via command line
 6. **Host a website accessible from the internet** (port forwarding, reverse proxy, Cloudflare Tunnel, ngrok)
-7. Set up WSL with port forwarding
-8. Share files via SMB
-9. **Track all actions with date/time stamps** for future reference
+7. **Run .NET 8 microservices in Docker on Laptop B with database on Laptop A** (PostgreSQL/MySQL)
+8. **Prepare for Linux production deployment**
+9. Set up WSL with port forwarding
+10. Share files via SMB
+11. **Track all actions with date/time stamps** for future reference
 
 ## Prerequisites
 
@@ -313,6 +315,99 @@ Returns a public URL like `https://abc123.ngrok.io`.
    \\<HOST_IP>\SharedFolder
    ```
 
+---
+
+### 12. Docker .NET 8 Microservices (Laptop B) + Database (Laptop A)
+
+Run .NET 8 microservices in Docker on Laptop B, with PostgreSQL/MySQL database on Laptop A. Designed to mirror a Linux production environment.
+
+#### Architecture
+
+```
+Laptop B (Docker)                    Laptop A (Database)
+─────────────────                    ────────────────────
+security-api:5001 ──── LAN ────────► PostgreSQL:5432
+scm-api:5002       ──── (Wi-Fi) ───► or MySQL:3306
+file-service:5003  ────            
+```
+
+#### Quick Start
+
+**On Laptop A (database):**
+1. Install PostgreSQL or MySQL
+2. Configure for remote access (`listen_addresses = '*'`)
+3. Add firewall rule:
+   ```cmd
+   netsh advfirewall firewall add rule name="PostgreSQL" dir=in action=allow protocol=TCP localport=5432
+   ```
+4. Create databases and user
+
+**On Laptop B (Docker):**
+1. Install Docker Desktop (WSL 2 backend)
+2. Create `docker-compose.yml` with your services
+3. Add firewall rules:
+   ```cmd
+   netsh advfirewall firewall add rule name="Security API" dir=in action=allow protocol=TCP localport=5001
+   netsh advfirewall firewall add rule name="SCM API" dir=in action=allow protocol=TCP localport=5002
+   netsh advfirewall firewall add rule name="File Service" dir=in action=allow protocol=TCP localport=5003
+   ```
+4. Run:
+   ```cmd
+   docker compose up -d --build
+   ```
+
+#### Sample docker-compose.yml
+
+```yaml
+version: '3.8'
+services:
+  security-api:
+    build: ./security-api
+    container_name: security-api
+    ports:
+      - "5001:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=192.168.68.113;Port=5432;Database=security_db;Username=appuser;Password=YourPassword123!
+    restart: unless-stopped
+```
+
+#### Dockerfile (for each .NET 8 service)
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 8080
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY ["src/Service.Api.csproj", "src/"]
+RUN dotnet restore "src/Service.Api.csproj"
+COPY . .
+RUN dotnet build "src/Service.Api.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "src/Service.Api.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "Service.Api.dll"]
+```
+
+#### Production Migration
+
+When moving to Linux production server:
+1. Docker Compose stays the same (Linux containers)
+2. Update connection strings to production DB
+3. Use `.env` files for environment-specific config
+4. Add reverse proxy (nginx) in front of services
+5. Use Docker registry to push/pull images
+
+> See full guide: `docker-deployment/ARCHITECTURE.md` in this project
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -402,6 +497,20 @@ Each session entry follows this format:
 - ngrok: Quick testing URL
 **Result:** ✅ Documentation added to both README.md and SKILL.md
 **Notes:** Laptop A already has internet-facing access which can be leveraged for reverse proxy. Cloudflare Tunnel is recommended for production use.
+
+---
+
+### 2026-05-25 ~17:00 — Architected Docker .NET 8 microservices deployment
+
+**Action:** Designed and documented full architecture for running .NET 8 microservices (security, SCM, file service) in Docker on Laptop B with PostgreSQL/MySQL database on Laptop A. Created `docker-deployment/ARCHITECTURE.md` with step-by-step setup, Dockerfiles, docker-compose.yml, production migration guide, and troubleshooting.
+**Laptop(s):** Both
+**Configuration:**
+- Laptop B: Docker Desktop (WSL 2) running 3 .NET 8 services on ports 5001, 5002, 5003
+- Laptop A: PostgreSQL (5432) and/or MySQL (3306) with remote access enabled
+- Network: Services connect to database via LAN at `192.168.68.113`
+- Docker Compose with health checks, volumes, and restart policies
+**Result:** ✅ Documentation complete — ARCHITECTURE.md, SKILL.md, README.md updated
+**Notes:** This design mirrors a Linux production environment. Transition to production involves updating connection strings, adding nginx reverse proxy, and using Docker registry.
 
 ---
 
